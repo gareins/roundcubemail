@@ -161,6 +161,7 @@ class rcmail_oauth
                 'language' => ['locale'],
             ]),
             'scope' => $this->rcmail->config->get('oauth_scope', ''),
+            'identity_scope' => $this->rcmail->config->get('oauth_identity_scope'),
             'timeout' => $this->rcmail->config->get('oauth_timeout', 10),
             'verify_peer' => $this->rcmail->config->get('oauth_verify_peer', true),
             'auth_parameters' => $this->rcmail->config->get('oauth_auth_parameters', []),
@@ -606,6 +607,14 @@ class rcmail_oauth
 
             // request user identity (email)
             if (empty($username)) {
+                // Change identity scope
+                if($this->options['scope_identity']) {
+                    $this->mask_auth_data($data);
+                    $refresh_response = $this->refresh_access_token($data, $this->options['scope_identity']);
+                    $data = $refresh_response['token'];
+                    $authorization = $refresh_response['authorization'];
+                }
+
                 $fetched_identity = $this->fetch_userinfo($authorization);
 
                 $this->log_debug('fetched identity: %s', json_encode($fetched_identity, true));
@@ -619,6 +628,13 @@ class rcmail_oauth
                             break;
                         }
                     }
+                }
+
+                // Restore scope for general mail functions
+                if($this->options['scope_identity']) {
+                    $refresh_response = $this->refresh_access_token($data, $this->options['scope']);
+                    $data = $refresh_response['token'];
+                    $authorization = $refresh_response['authorization'];
                 }
             }
 
@@ -686,10 +702,11 @@ class rcmail_oauth
      * session data.
      *
      * @return array|false Updated authorization data
+     * @param string $change_scope Optional, changes scope if specified
      *
      * @see https://datatracker.ietf.org/doc/html/rfc6749#section-6
      */
-    public function refresh_access_token(array $token)
+    public function refresh_access_token(array $token, $change_scope = null)
     {
         $oauth_token_uri = $this->options['token_uri'];
         $oauth_client_id = $this->options['client_id'];
