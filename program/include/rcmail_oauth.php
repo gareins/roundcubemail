@@ -723,6 +723,10 @@ class rcmail_oauth
                 'client_secret' => $oauth_client_secret,
             ];
 
+            if (!empty($change_scope)) [
+                $form['scope'] = change_scope;
+            ]
+
             if ($this->options['pkce']) {
                 $form['code_verifier'] = $this->rcmail->decrypt($_SESSION['oauth_code_verifier']);
             }
